@@ -9,8 +9,24 @@ import SwiftUI
 import RealityKit
 
 struct ContentView : View {
-    var models: [String] = ["fender_stratocaster",
-                            "sneaker_airforce", "teapot", "toy_biplane_idle"]
+    private var models: [String] = {
+        // 동적으로 모델 파일 가져오기
+        let fileManager = FileManager.default
+        
+        guard let path = Bundle.main.resourcePath, let
+                files = try? fileManager.contentsOfDirectory(atPath: path) else {
+            return []
+        }
+        
+        var availableModels: [String] = []
+        for filename in files where filename.hasSuffix("usdz") {
+            let modelName = filename.replacingOccurrences(of: ".usdz", with: "")
+            availableModels.append(modelName)
+        }
+        
+        return availableModels
+        
+    }()
     
     var body: some View {
         ARViewContainer().edgesIgnoringSafeArea(.all)
