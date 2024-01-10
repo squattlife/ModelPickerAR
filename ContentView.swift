@@ -9,6 +9,10 @@ import SwiftUI
 import RealityKit
 
 struct ContentView : View {
+    @State private var isPlacementEnabled = false
+    @State private var selectedModel: String?
+    @State private var modelConfirmedForPlacement: String?
+    
     private var models: [String] = {
         // 동적으로 모델 파일 가져오기
         let fileManager = FileManager.default
@@ -33,9 +37,11 @@ struct ContentView : View {
         ZStack(alignment: .bottom) {
             ARViewContainer()
             
-            ModelPickerView(models: self.models)
-            
-            PlacementButtonsView()
+            if self.isPlacementEnabled {
+                PlacementButtonsView(isPlacementEnabled: self.$isPlacementEnabled, selectedModel: self.$selectedModel, modelConfirmedForPlacement: self.$modelConfirmedForPlacement)
+            } else {
+                ModelPickerView(isPlacementEnabled: self.$isPlacementEnabled, selectedModel: self.$selectedModel, models: self.models)
+            }
         }
     }
 }
@@ -55,6 +61,9 @@ struct ARViewContainer: UIViewRepresentable {
 }
 
 struct ModelPickerView: View {
+    @Binding var isPlacementEnabled: Bool
+    @Binding var selectedModel: String?
+    
     var models: [String]
     
     var body: some View {
@@ -63,6 +72,10 @@ struct ModelPickerView: View {
                 ForEach(0 ..< self.models.count) { index in
                     Button {
                         print("DEBUG: selected model with name: \(self.models[index])")
+                        
+                        self.selectedModel = self.models[index]
+                        
+                        self.isPlacementEnabled = true
                     } label: {
                         Image(uiImage: UIImage(named: self.models[index])!)
                             .resizable()
@@ -80,11 +93,16 @@ struct ModelPickerView: View {
 }
 
 struct PlacementButtonsView: View {
+    @Binding var isPlacementEnabled: Bool
+    @Binding var selectedModel: String?
+    @Binding var modelConfirmedForPlacement: String?
+    
     var body: some View {
         HStack {
             // 취소 버튼
             Button {
                 print("DEBUG: Model Placement Canceled")
+                self.resetPlacementParameters()
             } label: {
                 Image(systemName: "xmark")
                     .frame(width: 60, height: 60)
@@ -97,6 +115,9 @@ struct PlacementButtonsView: View {
             // 확인(배치) 버튼
             Button {
                 print("DEBUG: Model Placement Contirmed.")
+                
+                self.modelConfirmedForPlacement = self.selectedModel
+                self.resetPlacementParameters()
             } label: {
                 Image(systemName: "checkmark")
                     .frame(width: 60, height: 60)
@@ -108,6 +129,12 @@ struct PlacementButtonsView: View {
         }
 
     }
+    
+    func resetPlacementParameters() {
+        self.isPlacementEnabled = false
+        self.selectedModel = nil
+    }
+    
 }
 
 #if DEBUG
