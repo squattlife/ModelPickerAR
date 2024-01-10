@@ -29,12 +29,13 @@ struct ContentView : View {
     }()
     
     var body: some View {
-        ARViewContainer().edgesIgnoringSafeArea(.all)
         
         ZStack(alignment: .bottom) {
             ARViewContainer()
             
             ModelPickerView(models: self.models)
+            
+            PlacementButtonsView()
         }
     }
 }
@@ -60,15 +61,14 @@ struct ModelPickerView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 30) {
                 ForEach(0 ..< self.models.count) { index in
-                    Button(action: {
+                    Button {
                         print("DEBUG: selected model with name: \(self.models[index])")
-                    }) {
+                    } label: {
                         Image(uiImage: UIImage(named: self.models[index])!)
                             .resizable()
                             .frame(height: 80)
                             .aspectRatio(1/1, contentMode: .fit)
                             .cornerRadius(15)
-                        
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -76,6 +76,37 @@ struct ModelPickerView: View {
         }
         .padding(20)
         .background(.black.opacity(0.5))
+    }
+}
+
+struct PlacementButtonsView: View {
+    var body: some View {
+        HStack {
+            // 취소 버튼
+            Button {
+                print("DEBUG: Model Placement Canceled")
+            } label: {
+                Image(systemName: "xmark")
+                    .frame(width: 60, height: 60)
+                    .font(.title)
+                    .background(.white.opacity(0.75))
+                    .cornerRadius(30)
+                    .padding(20)
+            }
+            
+            // 확인(배치) 버튼
+            Button {
+                print("DEBUG: Model Placement Contirmed.")
+            } label: {
+                Image(systemName: "checkmark")
+                    .frame(width: 60, height: 60)
+                    .font(.title)
+                    .background(.white.opacity(0.75))
+                    .cornerRadius(30)
+                    .padding(20)
+            }
+        }
+
     }
 }
 
