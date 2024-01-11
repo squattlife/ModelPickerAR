@@ -7,13 +7,14 @@
 
 import SwiftUI
 import RealityKit
+import ARKit
 
 struct ContentView : View {
     @State private var isPlacementEnabled = false
-    @State private var selectedModel: String?
-    @State private var modelConfirmedForPlacement: String?
+    @State private var selectedModel: Model?
+    @State private var modelConfirmedForPlacement: Model?
     
-    private var models: [String] = {
+    private var models: [Model] = {
         // 동적으로 모델 파일 가져오기
         let fileManager = FileManager.default
         
@@ -22,10 +23,12 @@ struct ContentView : View {
             return []
         }
         
-        var availableModels: [String] = []
+        var availableModels: [Model] = []
         for filename in files where filename.hasSuffix("usdz") {
             let modelName = filename.replacingOccurrences(of: ".usdz", with: "")
-            availableModels.append(modelName)
+            let model = Model(modelName: modelName)
+            
+            availableModels.append(model)
         }
         
         return availableModels
@@ -35,7 +38,7 @@ struct ContentView : View {
     var body: some View {
         
         ZStack(alignment: .bottom) {
-            ARViewContainer()
+            ARViewContainer(modelConfirmedForPlacement: self.$modelConfirmedForPlacement)
             
             if self.isPlacementEnabled {
                 PlacementButtonsView(isPlacementEnabled: self.$isPlacementEnabled, selectedModel: self.$selectedModel, modelConfirmedForPlacement: self.$modelConfirmedForPlacement)
@@ -47,37 +50,70 @@ struct ContentView : View {
 }
 
 struct ARViewContainer: UIViewRepresentable {
+    @Binding var modelConfirmedForPlacement: Model?
     
     func makeUIView(context: Context) -> ARView {
         
         let arView = ARView(frame: .zero)
         
+        let config = ARWorldTrackingConfiguration()
+        config.planeDetection = [.horizontal, .vertical]
+        config.environmentTexturing = .automatic
+        
+        // 기기마다 sceneReconstruction을 지원 유무가 다름 (가능하다면 사용하는게 좋음)
+        if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) {
+            config.sceneReconstruction = .mesh
+        }
+        
+        arView.session.run(config)
+        
         return arView
         
     }
     
-    func updateUIView(_ uiView: ARView, context: Context) {}
+    func updateUIView(_ uiView: ARView, context: Context) {
+        if let model = self.modelConfirmedForPlacement {
+            
+            if let modelEntity = model.modelEntity {
+                print("DEBUG: 화면에 모델 추가 , 모델명 : \(model.modelName)")
+                
+                let anchorEntity = AnchorEntity(plane: .any)
+                
+                anchorEntity.addChild(modelEntity)
+                
+                uiView.scene.addAnchor(anchorEntity)
+            } else {
+                print("DEBUG: modelEntity 로드 실패 , 모델명 : \(model.modelName)")
+            }
+            
+            // place 한뒤 초기화
+            DispatchQueue.main.async {
+                self.modelConfirmedForPlacement = nil
+            }
+            
+        }
+    }
     
 }
 
 struct ModelPickerView: View {
     @Binding var isPlacementEnabled: Bool
-    @Binding var selectedModel: String?
+    @Binding var selectedModel: Model?
     
-    var models: [String]
+    var models: [Model]
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 30) {
                 ForEach(0 ..< self.models.count) { index in
                     Button {
-                        print("DEBUG: selected model with name: \(self.models[index])")
+                        print("DEBUG: 선택한 모델 이름: \(self.models[index].modelName)")
                         
                         self.selectedModel = self.models[index]
                         
                         self.isPlacementEnabled = true
                     } label: {
-                        Image(uiImage: UIImage(named: self.models[index])!)
+                        Image(uiImage: self.models[index].image)
                             .resizable()
                             .frame(height: 80)
                             .aspectRatio(1/1, contentMode: .fit)
@@ -94,14 +130,14 @@ struct ModelPickerView: View {
 
 struct PlacementButtonsView: View {
     @Binding var isPlacementEnabled: Bool
-    @Binding var selectedModel: String?
-    @Binding var modelConfirmedForPlacement: String?
+    @Binding var selectedModel: Model?
+    @Binding var modelConfirmedForPlacement: Model?
     
     var body: some View {
         HStack {
             // 취소 버튼
             Button {
-                print("DEBUG: Model Placement Canceled")
+                print("DEBUG: 모델 배치 취소")
                 self.resetPlacementParameters()
             } label: {
                 Image(systemName: "xmark")
@@ -114,7 +150,7 @@ struct PlacementButtonsView: View {
             
             // 확인(배치) 버튼
             Button {
-                print("DEBUG: Model Placement Contirmed.")
+                print("DEBUG: 모델 배치 승인!")
                 
                 self.modelConfirmedForPlacement = self.selectedModel
                 self.resetPlacementParameters()
