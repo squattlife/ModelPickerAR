@@ -8,6 +8,7 @@
 import SwiftUI
 import RealityKit
 import ARKit
+import FocusEntity
 
 struct ContentView : View {
     @State private var isPlacementEnabled = false
@@ -54,21 +55,9 @@ struct ARViewContainer: UIViewRepresentable {
     
     func makeUIView(context: Context) -> ARView {
         
-        let arView = ARView(frame: .zero)
-        
-        let config = ARWorldTrackingConfiguration()
-        config.planeDetection = [.horizontal, .vertical]
-        config.environmentTexturing = .automatic
-        
-        // 기기마다 sceneReconstruction을 지원 유무가 다름 (가능하다면 사용하는게 좋음)
-        if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) {
-            config.sceneReconstruction = .mesh
-        }
-        
-        arView.session.run(config)
+        let arView = CustomARView(frame: .zero) //ARView(frame: .zero)
         
         return arView
-        
     }
     
     func updateUIView(_ uiView: ARView, context: Context) {
@@ -79,7 +68,8 @@ struct ARViewContainer: UIViewRepresentable {
                 
                 let anchorEntity = AnchorEntity(plane: .any)
                 
-                anchorEntity.addChild(modelEntity)
+                anchorEntity.addChild(modelEntity
+                    .clone(recursive: true))
                 
                 uiView.scene.addAnchor(anchorEntity)
             } else {
@@ -94,6 +84,47 @@ struct ARViewContainer: UIViewRepresentable {
         }
     }
     
+}
+
+class CustomARView: ARView {
+    let focusSquare = FESquare()
+    
+    required init(frame frameRect: CGRect) {
+        super.init(frame: frameRect)
+        
+        focusSquare.viewDelegate = self
+        focusSquare.delegate = self
+        focusSquare.setAutoUpdate(to: true)
+        
+        self.setupARView()
+    }
+    
+    @MainActor required dynamic init?(coder decoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    func setupARView() {
+        let config = ARWorldTrackingConfiguration()
+        config.planeDetection = [.horizontal, .vertical]
+        config.environmentTexturing = .automatic
+        
+        // 기기마다 sceneReconstruction을 지원 유무가 다름 (가능하다면 사용하는게 좋음)
+        if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) {
+            config.sceneReconstruction = .mesh
+        }
+        
+        self.session.run(config)
+    }
+}
+
+extension CustomARView: FEDelegate {
+    func toTrackingState() {
+        print("tracking")
+    }
+    
+    func toInitializingState() {
+        print("initializing")
+    }
 }
 
 struct ModelPickerView: View {
